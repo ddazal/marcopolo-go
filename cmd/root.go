@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
 
 	"github.com/ddazal/marcopolo-go/internal/config"
+	"github.com/ddazal/marcopolo-go/internal/db"
 	"github.com/spf13/cobra"
 )
 
@@ -37,4 +40,13 @@ func initConfig() {
 		log.Fatal(fmt.Errorf("could not load config: %w", err))
 	}
 	appConfig = cfg
+}
+
+// openDB opens a DB connection for migration operations.
+// appConfig is loaded once in root initConfig().
+func openDB(ctx context.Context) (*sql.DB, error) {
+	if appConfig == nil {
+		return nil, fmt.Errorf("configuration not initialized")
+	}
+	return db.Connect(ctx, *appConfig)
 }

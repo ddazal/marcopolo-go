@@ -1,12 +1,9 @@
 package cmd
 
 import (
-	"context"
 	"database/sql"
-	"fmt"
 	"os"
 
-	"github.com/ddazal/marcopolo-go/internal/db"
 	goose "github.com/pressly/goose/v3"
 	"github.com/spf13/cobra"
 )
@@ -49,15 +46,6 @@ func init() {
 	migrateCmd.AddCommand(migrateDownCmd)
 	migrateCmd.AddCommand(migrateStatusCmd)
 	migrateCmd.AddCommand(migrateVersionCmd)
-}
-
-// openDB opens a DB connection for migration operations.
-// appConfig is loaded once in root initConfig().
-func openDB(ctx context.Context) (*sql.DB, error) {
-	if appConfig == nil {
-		return nil, fmt.Errorf("configuration not initialized")
-	}
-	return db.Connect(ctx, *appConfig)
 }
 
 func newProvider(dbConn *sql.DB) (*goose.Provider, error) {

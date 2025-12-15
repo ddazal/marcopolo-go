@@ -9,7 +9,8 @@ import (
 )
 
 type Config struct {
-	DBDSN string `mapstructure:"db_dsn"`
+	DBDSN        string `mapstructure:"db_dsn"`
+	OpenAIAPIKey string `mapstructure:"openai_api_key"`
 }
 
 func Load() (*Config, error) {
@@ -22,7 +23,9 @@ func Load() (*Config, error) {
 	v.AddConfigPath(".")
 
 	if err := v.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("failed to read config: %w", err)
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return nil, fmt.Errorf("failed to read config: %w", err)
+		}
 	}
 
 	fmt.Println("Using config file:", v.ConfigFileUsed())
