@@ -40,7 +40,7 @@ By default this creates a SQL migration. Use --type=go to create a Go migration.
 			return fmt.Errorf("invalid --type=%q (expected sql or go)", createType)
 		}
 
-		if err := goose.Create(conn, migrationsDir, name, createType); err != nil {
+		if err := goose.Create(conn.DB, migrationsDir, name, createType); err != nil {
 			return fmt.Errorf("create migration: %w", err)
 		}
 		return nil

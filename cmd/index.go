@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ddazal/marcopolo-go/internal/db"
+	"github.com/ddazal/marcopolo-go/internal/models"
 	"github.com/ddazal/marcopolo-go/internal/tools"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
@@ -38,18 +40,23 @@ func indexTools(_ *cobra.Command, _ []string) error {
 	}
 	defer conn.Close()
 
-	tx, err := conn.BeginTx(ctx, nil)
+	repo := db.NewPostgresToolRepository(conn)
+
+	tx, err := conn.Beginx()
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback()
 
 	allTools := tools.GetAllTools()
-	for _, tool := range allTools {
-		toolDescription, err := tools.DescribeTool(tool)
+	for _, toolDef := range allTools {
+		// Generate tool description
+		toolDescription, err := tools.DescribeTool(toolDef)
 		if err != nil {
-			return fmt.Errorf("could not describe tool %q: %w", tool.Name, err)
+			return fmt.Errorf("could not describe tool %q: %w", toolDef.Name, err)
 		}
+
+		// Generate embedding using OpenAI
 		resp, err := client.Embeddings.New(ctx, openai.EmbeddingNewParams{
 			Input: openai.EmbeddingNewParamsInputUnion{
 				OfArrayOfStrings: []string{toolDescription.Text},
@@ -58,26 +65,24 @@ func indexTools(_ *cobra.Command, _ []string) error {
 			EncodingFormat: "float",
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create embedding for tool %q: %w", tool.Name, err)
+			return fmt.Errorf("failed to create embedding for tool %q: %w", toolDef.Name, err)
 		}
 
 		if len(resp.Data) != 1 {
 			return fmt.Errorf("expected 1 embedding, got %d", len(resp.Data))
 		}
 
+		// Convert embedding
 		emb64 := resp.Data[0].Embedding // []float64
 		emb32 := Float64To32(emb64)     // []float32
 		vec := pgvector.NewVector(emb32)
 
-		_, err = tx.ExecContext(
-			ctx,
-			"INSERT INTO tools (name, description, embedding) VALUES ($1, $2, $3)",
-			tool.Name,
-			toolDescription.Text,
-			vec,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to insert embedding for tool %q: %w", tool.Name, err)
+		// Create tool entity
+		tool := models.NewTool(toolDef, toolDescription, vec)
+
+		// Use repository to persist (upsert for idempotency)
+		if err := repo.UpsertTx(ctx, tx, tool); err != nil {
+			return fmt.Errorf("failed to upsert tool %q: %w", toolDef.Name, err)
 		}
 	}
 

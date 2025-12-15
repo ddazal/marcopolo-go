@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"database/sql"
 	"os"
 
+	"github.com/jmoiron/sqlx"
 	goose "github.com/pressly/goose/v3"
 	"github.com/spf13/cobra"
 )
@@ -48,11 +48,11 @@ func init() {
 	migrateCmd.AddCommand(migrateVersionCmd)
 }
 
-func newProvider(dbConn *sql.DB) (*goose.Provider, error) {
+func newProvider(dbConn *sqlx.DB) (*goose.Provider, error) {
 	fsys := os.DirFS(migrationsDir)
 	return goose.NewProvider(
 		goose.DialectPostgres,
-		dbConn,
+		dbConn.DB,
 		fsys,
 		goose.WithVerbose(migrationsVerbose),
 	)

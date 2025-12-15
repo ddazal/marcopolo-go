@@ -10,14 +10,14 @@ import (
 // Tool represents a persisted tool entity in the database.
 // This is separate from ToolDefinition which represents the in-memory tool registry.
 type Tool struct {
-	ID          int64           `json:"id"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
-	DeletedAt   *time.Time      `json:"deleted_at,omitempty"`
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Embedding   pgvector.Vector `json:"embedding"`
-	InputSchema *string         `json:"input_schema,omitempty"` // JSON string
+	ID          int64           `json:"id" db:"id"`
+	CreatedAt   time.Time       `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at" db:"updated_at"`
+	DeletedAt   *time.Time      `json:"deleted_at,omitempty" db:"deleted_at"`
+	Name        string          `json:"name" db:"name"`
+	Description string          `json:"description" db:"description"`
+	Embedding   pgvector.Vector `json:"embedding" db:"embedding"`
+	InputSchema *string         `json:"input_schema,omitempty" db:"input_schema"` // JSON string
 }
 
 // NewTool creates a Tool entity from a ToolDefinition and embedding.
