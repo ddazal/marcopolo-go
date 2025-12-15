@@ -15,13 +15,20 @@ import (
 // indexCmd represents the index command
 var indexCmd = &cobra.Command{
 	Use:   "index",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Index tools by generating and storing embeddings",
+	Long: `Generate embeddings for all registered tools and store them in the database.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+This command:
+- Retrieves all registered tools from the tool registry
+- Generates embeddings using the configured provider
+- Stores tool metadata and embeddings in the database for similarity search
+
+The embedding provider and model can be configured in config.yaml:
+  embedding:
+    provider: "openai"
+    model: "text-embedding-3-small"
+
+Re-running this command is safe - it uses upsert to update existing tools.`,
 	RunE: indexTools,
 }
 
