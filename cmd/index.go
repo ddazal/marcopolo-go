@@ -5,10 +5,9 @@ import (
 	"fmt"
 
 	"github.com/ddazal/marcopolo-go/internal/db"
+	"github.com/ddazal/marcopolo-go/internal/embeddings"
 	"github.com/ddazal/marcopolo-go/internal/models"
 	"github.com/ddazal/marcopolo-go/internal/tools"
-	"github.com/openai/openai-go/v3"
-	"github.com/openai/openai-go/v3/option"
 	"github.com/pgvector/pgvector-go"
 	"github.com/spf13/cobra"
 )
@@ -31,9 +30,14 @@ func init() {
 }
 
 func indexTools(_ *cobra.Command, _ []string) error {
-	client := openai.NewClient(option.WithAPIKey(appConfig.OpenAIAPIKey))
-
 	ctx := context.Background()
+
+	// Create embedding provider
+	embeddingProvider, err := embeddings.NewProvider(*appConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create embedding provider: %w", err)
+	}
+
 	conn, err := openDB(ctx)
 	if err != nil {
 		return err
@@ -50,37 +54,20 @@ func indexTools(_ *cobra.Command, _ []string) error {
 
 	allTools := tools.GetAllTools()
 	for _, toolDef := range allTools {
-		// Generate tool description
 		toolDescription, err := tools.DescribeTool(toolDef)
 		if err != nil {
 			return fmt.Errorf("could not describe tool %q: %w", toolDef.Name, err)
 		}
 
-		// Generate embedding using OpenAI
-		resp, err := client.Embeddings.New(ctx, openai.EmbeddingNewParams{
-			Input: openai.EmbeddingNewParamsInputUnion{
-				OfArrayOfStrings: []string{toolDescription.Text},
-			},
-			Model:          openai.EmbeddingModelTextEmbedding3Small,
-			EncodingFormat: "float",
-		})
+		embedding, err := embeddingProvider.GenerateEmbedding(ctx, toolDescription.Text)
 		if err != nil {
 			return fmt.Errorf("failed to create embedding for tool %q: %w", toolDef.Name, err)
 		}
 
-		if len(resp.Data) != 1 {
-			return fmt.Errorf("expected 1 embedding, got %d", len(resp.Data))
-		}
+		// Convert to pgvector
+		vec := pgvector.NewVector(embedding)
 
-		// Convert embedding
-		emb64 := resp.Data[0].Embedding // []float64
-		emb32 := Float64To32(emb64)     // []float32
-		vec := pgvector.NewVector(emb32)
-
-		// Create tool entity
 		tool := models.NewTool(toolDef, toolDescription, vec)
-
-		// Use repository to persist (upsert for idempotency)
 		if err := repo.UpsertTx(ctx, tx, tool); err != nil {
 			return fmt.Errorf("failed to upsert tool %q: %w", toolDef.Name, err)
 		}
@@ -91,12 +78,4 @@ func indexTools(_ *cobra.Command, _ []string) error {
 	}
 
 	return nil
-}
-
-func Float64To32(v []float64) []float32 {
-	out := make([]float32, len(v))
-	for i, x := range v {
-		out[i] = float32(x)
-	}
-	return out
 }

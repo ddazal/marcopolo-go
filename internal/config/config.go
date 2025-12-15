@@ -8,15 +8,23 @@ import (
 	"github.com/spf13/viper"
 )
 
+type EmbeddingConfig struct {
+	Provider string `mapstructure:"provider"` // "openai", "anthropic", etc.
+	Model    string `mapstructure:"model"`    // Provider-specific model name
+}
+
 type Config struct {
-	DBDSN        string `mapstructure:"db_dsn"`
-	OpenAIAPIKey string `mapstructure:"openai_api_key"`
+	DBDSN        string          `mapstructure:"db_dsn"`
+	OpenAIAPIKey string          `mapstructure:"openai_api_key"`
+	Embedding    EmbeddingConfig `mapstructure:"embedding"`
 }
 
 func Load() (*Config, error) {
 	v := viper.New()
 
 	v.SetDefault("db_dsn", "postgres://postgres:postgres@localhost/postgres")
+	v.SetDefault("embedding.provider", "openai")
+	v.SetDefault("embedding.model", "text-embedding-3-small")
 
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")
