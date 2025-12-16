@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "marcopolo": {
+      "type": "stdio",
+      "command": "/absolute/path/to/marcopolo-go",
+      "args": ["serve"],
+      "env": {
+        "DB_DSN": "postgres://user:password@localhost:5432/marcopolo?sslmode=disable",
+        "EMBEDDING_PROVIDER": "openai",
+        "EMBEDDING_MODEL": "text-embedding-3-small",
+        "EMBEDDING_API_KEY": "your-openai-api-key"
+      }
+    }
+  }
+}

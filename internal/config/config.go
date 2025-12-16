@@ -25,6 +25,7 @@ func Load() (*Config, error) {
 	v.SetDefault("db_dsn", "postgres://postgres:postgres@localhost/postgres")
 	v.SetDefault("embedding.provider", "openai")
 	v.SetDefault("embedding.model", "text-embedding-3-small")
+	v.SetDefault("embedding.api_key", "")
 
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")
@@ -36,10 +37,13 @@ func Load() (*Config, error) {
 		}
 	}
 
-	fmt.Println("Using config file:", v.ConfigFileUsed())
-
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
+	
+	v.BindEnv("db_dsn")
+	v.BindEnv("embedding.provider")
+	v.BindEnv("embedding.model")
+	v.BindEnv("embedding.api_key")
 
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {

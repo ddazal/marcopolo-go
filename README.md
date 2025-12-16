@@ -12,7 +12,15 @@ An MCP (Model Context Protocol) server that provides semantic search and executi
 
 ### 1. Configure API Key
 
-Create a `config.yaml` file in the project root:
+Create a `config.yaml` file in the project root (you can copy from `config.example.yaml`):
+
+```bash
+cp config.example.yaml config.yaml
+```
+
+Then edit `config.yaml` and replace `your-openai-api-key-here` with your actual OpenAI API key.
+
+Example configuration:
 
 ```yaml
 db_dsn: postgres://user:password@localhost:5432/marcopolo?sslmode=disable
@@ -21,8 +29,6 @@ embedding:
   model: "text-embedding-3-small"
   api_key: "your-openai-api-key"
 ```
-
-Replace `your-openai-api-key` with your actual OpenAI API key.
 
 ### 2. Start PostgreSQL Database
 
@@ -301,7 +307,13 @@ go build -o marcopolo-go .
 
 Add the server to your MCP settings file. The file location depends on your client:
 
-Create the file if it does not exist. Add this configuration:
+Create the file if it does not exist. See `mcp-config.example.json` for a complete example configuration.
+
+Add this configuration:
+
+#### Option A: Using config.yaml file
+
+If you have a `config.yaml` file in the same directory as the binary:
 
 ```json
 {
@@ -315,6 +327,36 @@ Create the file if it does not exist. Add this configuration:
   }
 }
 ```
+
+#### Option B: Using environment variables
+
+You can override or provide configuration via environment variables instead of `config.yaml`:
+
+```json
+{
+  "mcpServers": {
+    "marcopolo": {
+      "type": "stdio",
+      "command": "/absolute/path/to/marcopolo-go",
+      "args": ["serve"],
+      "env": {
+        "DB_DSN": "postgres://user:password@localhost:5432/marcopolo?sslmode=disable",
+        "EMBEDDING_PROVIDER": "openai",
+        "EMBEDDING_MODEL": "text-embedding-3-small",
+        "EMBEDDING_API_KEY": "your-openai-api-key"
+      }
+    }
+  }
+}
+```
+
+**Environment variable mapping:**
+- `DB_DSN` → `db_dsn` in config.yaml
+- `EMBEDDING_PROVIDER` → `embedding.provider`
+- `EMBEDDING_MODEL` → `embedding.model`
+- `EMBEDDING_API_KEY` → `embedding.api_key`
+
+Environment variables take precedence over values in `config.yaml`.
 
 Replace `/absolute/path/to/marcopolo-go` with the full path to your built binary.
 
