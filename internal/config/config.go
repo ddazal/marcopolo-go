@@ -11,12 +11,12 @@ import (
 type EmbeddingConfig struct {
 	Provider string `mapstructure:"provider"` // "openai", "anthropic", etc.
 	Model    string `mapstructure:"model"`    // Provider-specific model name
+	ApiKey   string `mapstructure:"api_key"`
 }
 
 type Config struct {
-	DBDSN        string          `mapstructure:"db_dsn"`
-	OpenAIAPIKey string          `mapstructure:"openai_api_key"`
-	Embedding    EmbeddingConfig `mapstructure:"embedding"`
+	DBDSN     string          `mapstructure:"db_dsn"`
+	Embedding EmbeddingConfig `mapstructure:"embedding"`
 }
 
 func Load() (*Config, error) {

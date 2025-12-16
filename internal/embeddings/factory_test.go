@@ -17,10 +17,10 @@ func TestNewProvider(t *testing.T) {
 	}{
 		"creates openai provider successfully": {
 			config: config.Config{
-				OpenAIAPIKey: "test-key",
 				Embedding: config.EmbeddingConfig{
 					Provider: "openai",
 					Model:    "text-embedding-3-small",
+					ApiKey:   "test-key",
 				},
 			},
 			expectError:  false,
@@ -28,10 +28,10 @@ func TestNewProvider(t *testing.T) {
 		},
 		"returns error for missing api key": {
 			config: config.Config{
-				OpenAIAPIKey: "",
 				Embedding: config.EmbeddingConfig{
 					Provider: "openai",
 					Model:    "text-embedding-3-small",
+					ApiKey:   "",
 				},
 			},
 			expectError: true,
@@ -39,10 +39,10 @@ func TestNewProvider(t *testing.T) {
 		},
 		"returns error for unsupported provider": {
 			config: config.Config{
-				OpenAIAPIKey: "test-key",
 				Embedding: config.EmbeddingConfig{
 					Provider: "anthropic",
 					Model:    "some-model",
+					ApiKey:   "test-key",
 				},
 			},
 			expectError: true,

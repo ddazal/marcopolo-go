@@ -1,5 +1,5 @@
 db_dsn: postgres://user:password@localhost:5432/marcopolo?sslmode=disable
-openai_api_key:
 embedding:
   provider: "openai"
   model: "text-embedding-3-small"
+  api_key:
