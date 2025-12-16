@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ddazal/marcopolo-go/internal/mcp"
 )
 
 // GetHolidaysInput represents the input parameters for get_holidays tool
@@ -31,8 +33,9 @@ type Holiday struct {
 }
 
 func init() {
+	name := "get_holidays"
 	getHolidaysTool := ToolDefinition{
-		Name:        "get_holidays",
+		Name:        name,
 		Description: "Retrieve the list of all public holidays for the specified year and country",
 		Parameters: &Parameters{
 			Properties: map[string]ParameterProperty{
@@ -49,6 +52,19 @@ func init() {
 		},
 	}
 	Register(getHolidaysTool)
+
+	// Register executable handler for MCP
+	mcp.RegisterExecutable(name, executeGetHolidays)
+}
+
+// executeGetHolidays is the handler for MCP execution
+func executeGetHolidays(ctx context.Context, arguments json.RawMessage) (interface{}, error) {
+	var input GetHolidaysInput
+	if err := json.Unmarshal(arguments, &input); err != nil {
+		return nil, fmt.Errorf("failed to parse arguments: %w", err)
+	}
+
+	return GetHolidays(ctx, input)
 }
 
 // GetHolidays retrieves public holidays for a specific year and country
@@ -74,8 +90,7 @@ func GetHolidays(ctx context.Context, input GetHolidaysInput) ([]Holiday, error)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		// TODO: handle error properly
-		return []Holiday{}, nil
+		return nil, fmt.Errorf("failed to fetch holidays: %s", resp.Status)
 	}
 
 	body, err := io.ReadAll(resp.Body)

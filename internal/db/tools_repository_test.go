@@ -150,57 +150,86 @@ func TestPostgresToolRepository_UpsertTx(t *testing.T) {
 	}
 }
 
-func TestPostgresToolRepository_FindSimilar(t *testing.T) {
+func TestPostgresToolRepository_FindSimilarWithScore(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
 	repo := NewPostgresToolRepository(db)
 	ctx := context.Background()
 
-	// Helper to create embedding with all values set to the same float
-	makeEmbedding := func(value float32) pgvector.Vector {
+	// Helper to create varied embedding vectors for testing similarity
+	// Different seeds create embeddings with significantly different cosine similarities
+	makeEmbedding := func(seed int) pgvector.Vector {
 		embedding := make([]float32, 1536)
 		for i := range embedding {
-			embedding[i] = value
+			embedding[i] = float32(seed)*0.1 + float32(i%100)*0.01
 		}
 		return pgvector.NewVector(embedding)
 	}
 
 	tests := map[string]struct {
 		seedTools        []*models.Tool
-		queryValue       float32
+		queryEmbedding   pgvector.Vector
+		minScore         float64
 		limit            int
 		expectedCount    int
 		expectedNames    []string
 		notExpectedNames []string
+		validateScores   bool
 	}{
-		"find similar returns closest tools": {
+		"returns tools with scores above threshold": {
 			seedTools: []*models.Tool{
-				{Name: "tool1", Description: "First tool", Embedding: makeEmbedding(0.1)},
-				{Name: "tool2", Description: "Second tool", Embedding: makeEmbedding(0.5)},
-				{Name: "tool3", Description: "Third tool", Embedding: makeEmbedding(0.15)},
+				{Name: "close_match", Description: "Close match", Embedding: makeEmbedding(5)},
+				{Name: "far_match", Description: "Far match", Embedding: makeEmbedding(1)},
 			},
-			queryValue:       0.12,
-			limit:            2,
+			queryEmbedding:   makeEmbedding(5),
+			minScore:         0.99,
+			limit:            10,
+			expectedCount:    1,
+			expectedNames:    []string{"close_match"},
+			notExpectedNames: []string{"far_match"},
+			validateScores:   true,
+		},
+		"filters by minimum score": {
+			seedTools: []*models.Tool{
+				{Name: "exact_match", Description: "Exact match tool", Embedding: makeEmbedding(10)},
+				{Name: "close_match", Description: "Close match tool", Embedding: makeEmbedding(9)},
+				{Name: "far_match", Description: "Far match tool", Embedding: makeEmbedding(1)},
+			},
+			queryEmbedding:   makeEmbedding(10),
+			minScore:         0.98,
+			limit:            10,
 			expectedCount:    2,
-			expectedNames:    []string{"tool1", "tool3"},
-			notExpectedNames: []string{"tool2"},
+			expectedNames:    []string{"exact_match", "close_match"},
+			notExpectedNames: []string{"far_match"},
+			validateScores:   true,
 		},
 		"respects limit parameter": {
 			seedTools: []*models.Tool{
-				{Name: "tool1", Description: "First tool", Embedding: makeEmbedding(0.1)},
-				{Name: "tool2", Description: "Second tool", Embedding: makeEmbedding(0.5)},
-				{Name: "tool3", Description: "Third tool", Embedding: makeEmbedding(0.15)},
+				{Name: "tool1", Description: "First tool", Embedding: makeEmbedding(5)},
+				{Name: "tool2", Description: "Second tool", Embedding: makeEmbedding(6)},
+				{Name: "tool3", Description: "Third tool", Embedding: makeEmbedding(7)},
 			},
-			queryValue:    0.2,
-			limit:         1,
-			expectedCount: 1,
+			queryEmbedding: makeEmbedding(5),
+			minScore:       0.0,
+			limit:          2,
+			expectedCount:  2,
+		},
+		"returns empty slice when no tools match score threshold": {
+			seedTools: []*models.Tool{
+				{Name: "tool1", Description: "First tool", Embedding: makeEmbedding(1)},
+			},
+			queryEmbedding: makeEmbedding(9),
+			minScore:       0.99,
+			limit:          10,
+			expectedCount:  0,
 		},
 		"returns empty slice when no tools exist": {
-			seedTools:     []*models.Tool{},
-			queryValue:    0.5,
-			limit:         10,
-			expectedCount: 0,
+			seedTools:      []*models.Tool{},
+			queryEmbedding: makeEmbedding(5),
+			minScore:       0.7,
+			limit:          10,
+			expectedCount:  0,
 		},
 	}
 
@@ -222,11 +251,19 @@ func TestPostgresToolRepository_FindSimilar(t *testing.T) {
 			}
 
 			// Execute query
-			query := makeEmbedding(tc.queryValue)
-			results, err := repo.FindSimilar(ctx, query, tc.limit)
+			results, err := repo.FindSimilarWithScore(ctx, tc.queryEmbedding, tc.minScore, tc.limit)
 			require.NoError(t, err)
 
 			assert.Len(t, results, tc.expectedCount)
+
+			// Validate all returned tools meet the minimum score threshold
+			if tc.validateScores {
+				for _, result := range results {
+					assert.GreaterOrEqual(t, result.RelevanceScore, tc.minScore,
+						"Tool %s has score %.4f which is below minimum %.4f",
+						result.Name, result.RelevanceScore, tc.minScore)
+				}
+			}
 
 			if len(tc.expectedNames) > 0 {
 				resultNames := make([]string, len(results))
